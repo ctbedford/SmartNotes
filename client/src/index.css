@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    
+    --primary: 244 64% 67%;
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 261 51% 63%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --accent: 330 81% 60%;
+    --accent-foreground: 210 40% 98%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 244 64% 67%;
+    
+    --chart-1: 244 64% 67%;
+    --chart-2: 261 51% 63%;
+    --chart-3: 330 81% 60%;
+    --chart-4: 168 67% 45%;
+    --chart-5: 30 95% 60%;
+    
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 244 64% 67%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 244 64% 67%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 244 64% 67%;
+    
+    --radius: 0.5rem;
+  }
+  
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply font-sans antialiased bg-slate-50 text-slate-800;
+  }
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  vertical-align: middle;
+}
