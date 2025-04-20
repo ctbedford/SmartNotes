@@ -1,0 +1,199 @@
+# =====================================================================
+#  🚀 REPLIT AI – BOOTSTRAP PROMPT (Project = “Aether Lite v2.0”)
+# =====================================================================
+# Goal: Build a minimal, functional prototype focusing on the core user loop.
+
+# --- 1. MISSION & CORE CONCEPT ---
+
+You are building **Aether Lite v2.0**, a minimal web application designed to demonstrate the core feedback loop of conscious alignment.
+**Mission:** Empower users to capture thoughts/content ("Spark"), connect them to personal values ("Resonate"), and see immediate visual feedback on a personal dashboard ("Mandala"), fostering a basic sense of alignment and progress. This version prioritizes speed of development and core functionality using Supabase for the backend.
+
+# --- 2. TARGET USER PERSONA (ALEX) ---
+
+Your user is **Alex**: A 25-year-old ambitious individual who wants to feel more organized and aligned with their values but needs simple, frictionless tools. For this Lite version, focus on their need for quick capture and immediate, tangible feedback.
+
+# --- 3. CORE PURPOSE & FEEL (LITE) ---
+
+Aether Lite's purpose is to provide a *tangible demonstration* of the Spark -> Resonate -> Feedback loop.
+The app should *feel*:
+* **Fast & Frictionless:** Capturing (Spark) and connecting (Resonate) should be near-instant.
+* **Visually Responsive:** The Dashboard (Mandala, XP) should update in near real-time based on user actions.
+* **Simple & Clear:** The interface should be intuitive, focusing only on the core implemented features.
+* **Encouraging:** Basic XP gains should provide positive reinforcement.
+
+# --- 4. USER EXPERIENCE NORTH STAR (LITE) ---
+
+> “I open Aether Lite, **Spark** a thought in seconds, later **Resonate** it with a core **Value**, and immediately see my **Mandala** shift and **XP** increase on the Dashboard.”
+
+# --- 5. KEY CONCEPTS (LITE) ---
+
+* **Spark:** Quickly capturing text notes or external URLs via a modal.
+* **Value:** User-defined core principles (e.g., Growth, Health) stored in the Compass.
+* **Resonate:** The action of linking a captured item (`Capture`) to a specific `Value`, logging the connection and granting XP.
+* **Action:** A simple task item managed on the Kanban board.
+* **Mandala:** A dashboard visualization (Radar chart) showing the *relative count* of Resonates associated with each Value.
+* **XP:** Experience points gained primarily through Resonating and completing Actions.
+
+# --- 6. ARCHITECTURE & TECH STACK (LITE - REPLIT OPTIMIZED) ---
+
+* **Frontend Framework:** **React** with **TypeScript**, running via **Vite**. Target environment: `/apps/web` (or root).
+* **Backend:** **Supabase** (use as BaaS - Backend as a Service).
+    * **Authentication:** Supabase Auth (Email Magic Link recommended for simplicity).
+    * **Database:** Supabase **PostgreSQL**.
+    * **Real-time:** Supabase **Realtime** subscriptions for pushing DB changes to the frontend.
+    * **Storage:** Supabase **Storage** for potential future file uploads (Spark - optional for initial build).
+* **ORM:** **Drizzle ORM** configured for Supabase Postgres.
+* **Schema/Types:** Drizzle Schema derived from the SQL DDL (Section VII), **Zod** for validation (optional but recommended for form/client-side validation), shared TS types.
+* **Styling:** **Tailwind CSS**.
+* **UI Components:** **shadcn/UI** for base components.
+* **Client State Management:** **React Query (`@tanstack/react-query`)** for managing Supabase data fetching/caching and real-time updates.
+* **Routing:** Implement client-side routing using a suitable library (e.g., **React Router, TanStack Router, wouter**).
+* **Charting:** Use **Nivo** (`@nivo/radar`, `@nivo/line`) for Dashboard charts.
+* **Deployment:** Target **Vercel** (free tier).
+
+# --- 7. CORE DATA MODEL (LITE - Supabase SQL DDL) ---
+
+Implement this exact schema in your Supabase PostgreSQL database using Drizzle migrations (`schema.ts` and `drizzle-kit generate:pg`). Ensure Row Level Security (RLS) is enabled and policies are created later to restrict data access to the owning user (`user_id = auth.uid()`).
+
+```sql
+-- Enable Row Level Security (Do this in Supabase SQL Editor once)
+-- alter table values enable row level security;
+-- alter table captures enable row level security;
+-- alter table actions enable row level security;
+-- alter table resonate enable row level security;
+-- alter table xp_ledger enable row level security;
+
+-- Define tables
+create table values (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  name text not null,
+  description text, -- Added description from mockup
+  -- weight removed for simplicity, can be added later if needed for Mandala weighting
+  created_at timestamptz default now(), -- Added tracking
+  constraint user_value_name_unique unique (user_id, name) -- Ensure unique value names per user
+);
+
+create table captures (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  -- Simplified kind for Lite, primarily 'THOUGHT' or 'EXTERNAL_LINK'
+  kind text check (kind in ('THOUGHT','EXTERNAL_LINK')) not null default 'THOUGHT',
+  body text, -- For THOUGHT kind
+  url text, -- For EXTERNAL_LINK kind
+  -- tags text[], -- Defer tags for simplicity
+  -- value_id removed, resonance is tracked separately
+  created_at timestamptz default now()
+);
+
+create table actions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  title text not null, -- Ensure title is not null
+  status text check (status in ('TODO','DOING','DONE')) default 'TODO',
+  -- Removed energy, est_minutes, value_id for simplicity
+  -- Consider adding 'capture_id uuid references captures' if task is derived from capture
+  -- due_date removed for simplicity
+  created_at timestamptz default now(),
+  updated_at timestamptz default now() -- For tracking status changes
+);
+
+create table resonate (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  capture_id uuid references captures not null, -- Must reference a capture
+  value_id uuid references values not null, -- Must reference a value
+  reflection text, -- Optional reflection text
+  xp_granted int default 10, -- Track XP granted for this specific action
+  created_at timestamptz default now(),
+  constraint user_capture_value_unique unique (user_id, capture_id, value_id) -- Prevent resonating same capture+value multiple times
+);
+
+create table xp_ledger (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  delta int not null, -- Change in XP (+/-)
+  source_description text, -- e.g., "Completed Action: X", "Resonated with Value: Y"
+  source_action_id uuid, -- Optional FK to actions table
+  source_resonate_id uuid references resonate, -- Optional FK to resonate table
+  created_at timestamptz default now()
+);
+
+-- Example RLS Policies (Add these in Supabase SQL Editor or via migrations later)
+-- create policy "Users can manage their own values" on values for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "Users can manage their own captures" on captures for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "Users can manage their own actions" on actions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "Users can manage their own resonate actions" on resonate for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "Users can read their own xp ledger" on xp_ledger for select using (auth.uid() = user_id);
+-- (Note: Insert policy for xp_ledger might be restricted to backend functions/triggers later)
+
+-- Optional: Create a view for easy Mandala data fetching
+create or replace view mandala_data as
+  select
+    v.user_id,
+    v.id as value_id,
+    v.name as value_name,
+    count(r.id)::int as resonate_count -- Count resonate actions per value
+  from values v
+  left join resonate r on v.id = r.value_id
+  group by v.user_id, v.id, v.name;
+
+-- RLS for the view
+-- alter view mandala_data enable row level security;
+-- create policy "Users can read their own mandala data" on mandala_data for select using (auth.uid() = user_id);
+
+--- 8. CORE FEATURES & UI (LITE - Based on Mockups) ---
+Implement the following pages and components using React, Vite, Tailwind, and shadcn/UI:
+
+Authentication:
+Implement Supabase Auth using Magic Link (email sign-in). Create simple /login and /auth/callback pages/routes.
+Protect routes using a wrapper component that checks Supabase auth state.
+Global Layout:
+Create a main layout component containing a simple Header (with App Name "AETHER LITE", Spark button trigger, User Profile display/logout) and a Sidebar (with links to Dashboard, Feed, Kanban, Compass).
+Use the user's provided mockups for visual reference for header/sidebar structure.
+Spark Modal (/spark equivalent):
+Triggered by a global "Spark" button (e.g., in the Header).
+Uses a shadcn Dialog or Sheet.
+Contains a Textarea for capturing body (for THOUGHT kind) OR an Input for url (for EXTERNAL_LINK kind). Include a simple toggle/radio to switch between thought/link capture.
+On Save: Use supabase-js client to insert a row into the captures table. Close the modal.
+Deferred: "Convert to Task" and "Resonate" quick actions from the mockup are deferred for simplicity in the initial build of the modal itself (Resonate happens from Feed).
+Feed Page (/feed):
+Fetches and displays captures owned by the user using supabase-js and React Query.
+Displays each capture in a Card component (similar to mockup). Show body or url.
+Crucially: Each card MUST have a "🌊 Resonate" button.
+Clicking "Resonate": Opens a ResonateModal (Dialog).
+ResonateModal: Fetches the user's values. Displays them as selectable Badge components. Allows user to select ONE value. On Submit, use supabase-js to insert a row into the resonate table (linking capture_id, value_id, user_id) AND insert a corresponding row into xp_ledger (+10 XP, source description). Close modal.
+Deferred: "To Task" button functionality. Displaying external link previews (requires library like link-preview-js).
+Kanban Page (/kanban):
+Displays three columns: "To Do", "Doing", "Done" based on actions.status.
+Fetches actions for the user via supabase-js / React Query.
+Renders each action as a simple TaskCard (showing title, maybe created_at date).
+Implement drag-and-drop between columns (use a simple library like @hello-pangea/dnd or alternatives).
+On Drop: Update the actions.status in the database using supabase-js.
+If status changes to "DONE": Also insert a row into xp_ledger (+10 XP, source description "Completed action: [title]").
+Include a simple way to add new tasks (e.g., an "Add Task" button opening a small form/dialog that inserts into actions with status 'TODO').
+Compass Page (/compass):
+Fetches and displays the user's values in Card components (showing name and description as per mockup).
+Include an "Add Value" button triggering the AddValueModal.
+AddValueModal: Uses a shadcn Dialog with Input for name and Textarea for description. On Save, inserts into the values table via supabase-js.
+Implement basic Edit/Delete functionality for existing values (e.g., buttons on value cards opening a similar modal or confirmation).
+Dashboard Page (/dashboard):
+Mandala Chart: Use @nivo/radar. Fetch data from the mandala_data view (or equivalent Supabase query grouping resonate by value_id and joining values) via supabase-js / React Query. The chart axes should be the Value names, and the value for each axis should be the resonate_count.
+XP Display: Fetch the SUM of delta from xp_ledger for the user. Display the total XP. Calculate Level (e.g., Level = floor(XP / 100) + 1) and display. Show progress to the next level using shadcn Progress bar (e.g., (XP % 100) / 100).
+Recent Activity/XP: Fetch the last 5 entries from xp_ledger and display them simply (source description, delta). Fetch last 5 captures and display links/titles.
+Real-time Updates: Implement Supabase Realtime subscriptions (supabase.channel(...).on(...)) for the resonate and xp_ledger tables. When changes occur, trigger a refetch of the relevant React Query data (queryClient.invalidateQueries) for the Mandala and XP components to update automatically.
+--- 9. KEY IMPLEMENTATION DETAILS (LITE) ---
+Authentication: Rely entirely on supabase-js Auth client (magic link flow). Use useAuth hook pattern. Implement protected routes.
+Data Access: Use supabase-js client directly for all database interactions (select, insert, update, delete). Integrate with React Query for caching, fetching status, and easy refetching/invalidation.
+Real-time: Use supabase-js Realtime client to subscribe to changes in resonate and xp_ledger tables. Trigger React Query invalidations in the subscription callbacks.
+State Management: Primarily React Query for server state. Minimal local component state or simple Zustand/Context for things like modal open state.
+Forms: Use controlled components with React state. Handle submissions with supabase-js calls within onSubmit handlers. Use Zod for client-side validation if desired.
+Styling: Use Tailwind utility classes and shadcn/UI component primitives. Focus on clean implementation based on mockups.
+--- 10. AI EXECUTION MANDATE (LITE) ---
+Focus: Implement only the features and data model described in this Aether Lite prompt.
+Stack: Strictly adhere to the React/Vite/Supabase(Postgres)/Drizzle/shadcn/Tailwind stack defined in Section VI.
+Core Loop: Prioritize making the Spark -> Resonate -> Dashboard Feedback loop fully functional, including the real-time updates.
+Simplicity: Keep implementations straightforward. Defer complex error handling, loading states beyond basics, accessibility optimizations, and features not explicitly mentioned here.
+Code Quality: Write clean, readable TypeScript code. Use functional components and hooks. Add basic comments explaining component purpose. Ensure the project builds and runs (pnpm run dev).
+--- 11. FINAL MANDATE (LITE) ---
+Your goal is a functional, minimal prototype of Aether Lite demonstrating the core value loop. Build the features described above using the specified stack and data model. Focus on getting the core interaction working quickly and reliably. Build this.
