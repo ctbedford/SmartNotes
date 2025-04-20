@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
+import { isDemoMode, getMockCaptures } from "@/lib/demoData";
 
 interface Capture {
   id: string;
@@ -16,10 +17,17 @@ interface Capture {
 
 export default function RecentCaptures() {
   const { user } = useAuthStore();
+  const isDemo = isDemoMode();
 
   const { data: captures = [], isLoading } = useQuery({
     queryKey: ['recentCaptures'],
     queryFn: async () => {
+      // For demo mode, return mock data
+      if (isDemo) {
+        return getMockCaptures();
+      }
+
+      // Real Supabase data
       const { data, error } = await supabase
         .from('captures')
         .select('*')
@@ -34,9 +42,9 @@ export default function RecentCaptures() {
     enabled: !!user?.id,
   });
 
-  // Set up real-time subscription for capture updates
+  // Set up real-time subscription for capture updates (not for demo mode)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || isDemo) return;
     
     const channel = supabase
       .channel('captures-changes')
@@ -54,7 +62,7 @@ export default function RecentCaptures() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, isDemo]);
 
   const renderSkeletonItem = () => (
     <div className="flex items-start py-2 border-b border-slate-100">

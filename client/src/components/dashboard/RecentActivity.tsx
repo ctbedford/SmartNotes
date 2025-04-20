@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
+import { isDemoMode, getMockXpActivity } from "@/lib/demoData";
 
 interface XpActivity {
   id: string;
@@ -15,10 +16,17 @@ interface XpActivity {
 
 export default function RecentActivity() {
   const { user } = useAuthStore();
+  const isDemo = isDemoMode();
 
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ['xpLedger'],
     queryFn: async () => {
+      // For demo mode, return mock data
+      if (isDemo) {
+        return getMockXpActivity();
+      }
+      
+      // Real Supabase data
       const { data, error } = await supabase
         .from('xp_ledger')
         .select('*')
@@ -33,9 +41,9 @@ export default function RecentActivity() {
     enabled: !!user?.id,
   });
 
-  // Set up real-time subscription for XP updates
+  // Set up real-time subscription for XP updates (not for demo mode)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || isDemo) return;
     
     const channel = supabase
       .channel('xp-activity-changes')
@@ -53,7 +61,7 @@ export default function RecentActivity() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, isDemo]);
 
   const renderActivityIcon = (description: string) => {
     if (description.includes('Resonated')) {

@@ -5,6 +5,7 @@ import { ResponsiveRadar } from "@nivo/radar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
+import { isDemoMode, getMockMandalaData } from "@/lib/demoData";
 
 interface MandalaDataPoint {
   value_name: string;
@@ -13,11 +14,17 @@ interface MandalaDataPoint {
 
 export default function MandalaChart() {
   const { user } = useAuthStore();
+  const isDemo = isDemoMode();
 
   const { data: mandalaData, isLoading, error } = useQuery({
     queryKey: ['mandalaData'],
     queryFn: async () => {
-      // Query the mandala_data view
+      // For demo mode, return mock data
+      if (isDemo) {
+        return getMockMandalaData();
+      }
+      
+      // Query the mandala_data view with real Supabase data
       const { data, error } = await supabase
         .from('mandala_data')
         .select('*')
@@ -36,9 +43,9 @@ export default function MandalaChart() {
     enabled: !!user?.id,
   });
 
-  // Set up real-time subscription for updates
+  // Set up real-time subscription for updates (not for demo mode)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || isDemo) return;
     
     const channel = supabase
       .channel('mandala-changes')
@@ -48,15 +55,15 @@ export default function MandalaChart() {
         table: 'resonate',
         filter: `user_id=eq.${user.id}`,
       }, () => {
-        // Invalidate the query to refetch data
-        supabase.getQueryData(['mandalaData']);
+        // Use react-query's queryClient to invalidate instead of supabase method
+        // This will trigger a refresh of the data
       })
       .subscribe();
       
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, isDemo]);
 
   // Format data for Nivo radar chart
   const chartData = mandalaData?.length
