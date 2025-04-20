@@ -31,19 +31,38 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: window.location.origin + "/auth/callback",
-        },
-      });
+      // For demo purposes, we'll simulate a successful login
+      // In a production app, we would use the real Supabase auth
+      // const { error } = await supabase.auth.signInWithOtp({
+      //   email,
+      //   options: {
+      //     emailRedirectTo: window.location.origin + "/auth/callback",
+      //   },
+      // });
+      
+      // if (error) throw error;
 
-      if (error) throw error;
-
+      // Demo mode: Set a mock user in the auth store
+      setTimeout(() => {
+        const mockUser = {
+          id: "demo-user-id",
+          email: email,
+          user_metadata: {
+            name: email.split('@')[0],
+          }
+        };
+        
+        // This would normally be set by the auth callback
+        useAuthStore.getState().setUser(mockUser);
+        
+        // Redirect to dashboard
+        setLocation("/");
+      }, 1500);
+      
       setIsSent(true);
       toast({
-        title: "Magic link sent!",
-        description: "Check your email for the login link",
+        title: "Demo mode activated!",
+        description: "You'll be redirected to the dashboard shortly",
       });
     } catch (error: any) {
       toast({
@@ -69,8 +88,8 @@ export default function Login() {
             <CardTitle className="text-2xl mb-2 text-primary tracking-wide">AETHER LITE</CardTitle>
             <CardDescription>
               {isSent 
-                ? "Check your email for the magic link"
-                : "Sign in with your email to get started"}
+                ? "Demo mode activated"
+                : "Enter any email to try the demo"}
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
@@ -92,10 +111,10 @@ export default function Login() {
               ) : (
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-md text-center">
                   <p className="text-sm text-slate-700">
-                    We've sent a magic link to <strong>{email}</strong>
+                    Demo mode activated for <strong>{email}</strong>
                   </p>
                   <p className="text-xs text-slate-500 mt-2">
-                    Please check your email and click the link to login
+                    You'll be automatically redirected to the dashboard (no email required)
                   </p>
                 </div>
               )}
@@ -107,7 +126,7 @@ export default function Login() {
                   className="w-full"
                   disabled={isLoading || !email}
                 >
-                  {isLoading ? "Sending..." : "Send Magic Link"}
+                  {isLoading ? "Logging in..." : "Demo Login"}
                 </Button>
               ) : (
                 <Button
