@@ -6,6 +6,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import TaskCard from "./TaskCard";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isDemoMode, getMockTasks } from "@/lib/demoData";
 
 interface Task {
   id: string;
@@ -22,10 +23,17 @@ export default function KanbanBoard() {
   const [todoTasks, setTodoTasks] = useState<Task[]>([]);
   const [doingTasks, setDoingTasks] = useState<Task[]>([]);
   const [doneTasks, setDoneTasks] = useState<Task[]>([]);
+  const isDemo = isDemoMode();
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['actions'],
     queryFn: async () => {
+      // For demo mode, return mock data
+      if (isDemo) {
+        return getMockTasks();
+      }
+      
+      // Real Supabase data
       const { data, error } = await supabase
         .from('actions')
         .select('*')
@@ -48,9 +56,9 @@ export default function KanbanBoard() {
     }
   }, [tasks]);
 
-  // Set up real-time subscription for task updates
+  // Set up real-time subscription for task updates (not for demo mode)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || isDemo) return;
     
     const channel = supabase
       .channel('actions-changes')
@@ -67,7 +75,7 @@ export default function KanbanBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, queryClient]);
+  }, [user?.id, queryClient, isDemo]);
 
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -112,8 +120,24 @@ export default function KanbanBoard() {
       setDoneTasks(prev => [...prev, updatedTask]);
     }
     
+    // For demo mode, just show toast messages without DB updates
+    if (isDemo) {
+      if (newStatus === 'DONE' && oldStatus !== 'DONE') {
+        toast({
+          title: "Task completed! (Demo)",
+          description: "In a real app, you would earn XP for completing tasks.",
+        });
+      } else {
+        toast({
+          title: "Task updated! (Demo)",
+          description: `Task moved to ${newStatus.toLowerCase()}.`,
+        });
+      }
+      return;
+    }
+    
     try {
-      // Update the task in the database
+      // Update the task in the database (real mode only)
       const { error } = await supabase
         .from('actions')
         .update({ status: newStatus, updated_at: new Date().toISOString() })

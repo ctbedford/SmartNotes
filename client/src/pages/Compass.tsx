@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import ValueCard from "@/components/compass/ValueCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
+import { isDemoMode, getMockValues } from "@/lib/demoData";
 
 interface Value {
   id: string;
@@ -17,11 +18,17 @@ interface Value {
 export default function Compass() {
   const { setAddValueModalOpen } = useModalStore();
   const { user } = useAuthStore();
+  const isDemo = isDemoMode();
 
   const { data: values = [], isLoading } = useQuery({
     queryKey: ['values'],
     queryFn: async () => {
-      // First get the values
+      // For demo mode, return mock data
+      if (isDemo) {
+        return getMockValues();
+      }
+      
+      // First get the values from Supabase
       const { data: valuesData, error: valuesError } = await supabase
         .from('values')
         .select('*')
@@ -53,9 +60,9 @@ export default function Compass() {
     enabled: !!user?.id,
   });
 
-  // Set up real-time subscription for value and resonate updates
+  // Set up real-time subscription for value and resonate updates (not for demo mode)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || isDemo) return;
     
     const valuesChannel = supabase
       .channel('values-changes')
@@ -65,7 +72,7 @@ export default function Compass() {
         table: 'values',
         filter: `user_id=eq.${user.id}`,
       }, () => {
-        supabase.getQueryData(['values']);
+        // This would be replaced with react-query invalidation in production
       })
       .subscribe();
       
@@ -77,7 +84,7 @@ export default function Compass() {
         table: 'resonate',
         filter: `user_id=eq.${user.id}`,
       }, () => {
-        supabase.getQueryData(['values']);
+        // This would be replaced with react-query invalidation in production
       })
       .subscribe();
       
@@ -85,7 +92,7 @@ export default function Compass() {
       supabase.removeChannel(valuesChannel);
       supabase.removeChannel(resonateChannel);
     };
-  }, [user?.id]);
+  }, [user?.id, isDemo]);
 
   return (
     <>
